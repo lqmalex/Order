@@ -114,17 +114,18 @@ class OrderController extends Controller
         if (count($this->order) != 0) {
             foreach ($this->order as $k => &$v) {
                 if ($sku_res['product']->id == $v['id']) {
-                    $num = $this->weight($express_res->min_money, $express_res->weight, $express_res->fee, $sku_res->weight * $quantity, $v['express_fee']);
+                    $price = $v['product_fee'] + $sku_res->price * $quantity;
+                    $num = $this->weight($express_res->min_money, $express_res->weight, $express_res->fee, $sku_res->weight * $quantity, $price, $v['express_fee']);
                     $v['sku_id'][] = $sku_id;
                     $v['sku_price'][] = $sku_res->price;
                     $v['sku_quantity'][] = $quantity;
+                    $v['product_fee'] = $price;
                     $v['express_fee'] = $num;
-                    $v['product_fee'] += $sku_res->price * $quantity;
                     return ['status' => true];
                 }
             }
 
-            $num = $this->weight($express_res->min_money, $express_res->weight, $express_res->fee, $sku_res->weight * $quantity);
+            $num = $this->weight($express_res->min_money, $express_res->weight, $express_res->fee, $sku_res->weight * $quantity, $sku_res->price * $quantity);
             $this->order[] = [
                 'id' => $express_res->id,
                 'product_name' => $sku_res['product']->name,
@@ -136,7 +137,7 @@ class OrderController extends Controller
             ];
             return ['status' => true];
         } else {
-            $num = $this->weight($express_res->min_money, $express_res->weight, $express_res->fee, $sku_res->weight * $quantity);
+            $num = $this->weight($express_res->min_money, $express_res->weight, $express_res->fee, $sku_res->weight * $quantity, $sku_res->price * $quantity);
 
             $this->order[] = [
                 'id' => $sku_res['product']->id,
@@ -161,7 +162,7 @@ class OrderController extends Controller
      * @param null $sku_fee 默认为空 如果为同一个商品则将该商品的已有的运费带入
      * @return float|int|null
      */
-    private function weight($min_money, $weight, $fee, $sku_weight, $sku_fee = null)
+    private function weight($min_money, $weight, $fee, $sku_weight, $price, $sku_fee = null)
     {
         if ($sku_weight < $weight) {
             return $fee;
@@ -169,7 +170,7 @@ class OrderController extends Controller
             //sku_fee 不为null 则代表购买了同一商品 所以必须将运费合在一起计算
             $num = $sku_fee === null ? ($sku_weight / $weight) * $fee : $sku_fee + (($sku_weight / $weight) * $fee);
 
-            if ($num >= $min_money) {
+            if ($price >= $min_money) {
                 return 0;
             }
 
